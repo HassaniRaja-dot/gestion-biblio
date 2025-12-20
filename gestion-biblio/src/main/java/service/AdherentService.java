@@ -1,31 +1,88 @@
-package ma.estm.bibliotheque.service;
-
-import ma.estm.bibliotheque.dao.AdherentDao;
-import ma.estm.bibliotheque.dao.EmpruntDao;
-import ma.estm.bibliotheque.model.Adherent;
-import ma.estm.bibliotheque.util.ValidationUtil;
-import ma.estm.bibliotheque.util.LogUtil;
+package ma.est.meknes.bibliotheque.service;
+import ma.est.meknes.bibliotheque.model.Adherent;
+import ma.est.meknes.bibliotheque.dao.AdherentDAO;
 import java.util.List;
-
 public class AdherentService {
-    private AdherentDao adherentDao;
-    private EmpruntDao empruntDao;
-    private LogUtil logUtil;
+    private AdherentDAO adherentDAO;
+    private JournalService journalService;
+    private static final int MAX_EMPRUNTS_ACTIFS = 3;
+    private static final int DELAI_RETARD_JOURS = 10;
+    public AdherentService() {
+        this.adherentDAO = new AdherentDAO();
+        this.journalService = new JournalService();
+    }
+    public boolean ajouterAdherent(Adherent adherent) {
+        try {
+            if (adherentDAO.existeParEmail(adherent.getEmail())) {
+                System.err.println("Email déjà enregistré");
+                return false;
+            }
+            adherentDAO.save(adherent);
+            journalService.log("AJOUT_ADHERENT", "Adhérent ajouté : " + adherent.getNom());
+            return true;
+        } catch (Exception e) {
+            System.err.println("Erreur lors de l'ajout : " + e.getMessage());
+            return false;
+        }
+    }
+    public Adherent obtenirAdherentParId(int id) {
+        return adherentDAO.findById(id);
+    }
     
-    public AdherentService() { }
-    public AdherentService(AdherentDao adherentDao, EmpruntDao empruntDao) { }
+
+    public List<Adherent> obtenirTousLesAdherents() {
+        return adherentDAO.findAll();
+    }
     
-    public void ajouterAdherent(Adherent adherent) throws Exception { }
-    public void modifierAdherent(Adherent adherent) throws Exception { }
-    public void supprimerAdherent(int id) throws Exception { }
-    public Adherent getById(int id) throws Exception { return null; }
-    public Adherent getByEmail(String email) { return null; }
-    public Adherent getByNumero(String numero) { return null; }
-    public List<Adherent> getAll() { return null; }
-    public List<Adherent> rechercher(String motCle) { return null; }
-    public boolean peutEmprunter(int id, int maxEmprunts) { return false; }
-    public int getNombreEmpruntsActifs(int id) { return 0; }
-    public void bloquerAdherent(int id, String motif) throws Exception { }
-    public void debloquerAdherent(int id) throws Exception { }
-    public List<Adherent> getAdherentsBloques() { return null; }
+    public boolean modifierAdherent(Adherent adherent) {
+        try {
+            adherentDAO.update(adherent);
+            journalService.log("MODIFICATION_ADHERENT", "Adhérent modifié : " + adherent.getNom());
+            return true;
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la modification : " + e.getMessage());
+            return false;
+        }
+    }
+    public boolean supprimerAdherent(int id) {
+        try {
+            Adherent adherent = adherentDAO.findById(id);
+            if (adherent == null) {
+                return false;
+            }       
+            adherentDAO.delete(id);
+            journalService.log("SUPPRESSION_ADHERENT", "Adhérent supprimé : " + adherent.getNom());
+            return true;
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la suppression : " + e.getMessage());
+            return false;
+        }
+    }
+    public boolean peutEmprunter(int id) {
+        Adherent adherent = adherentDAO.findById(id);
+        if (adherent == null) {
+            return false;
+        }
+        if (adherent.isBloque()) {
+            System.out.println("Adhérent bloqué en raison d'un retard");
+            return false;
+        }
+        return true;
+    }
+    public void bloquerAdherent(int id) {
+        Adherent adherent = adherentDAO.findById(id);
+        if (adherent != null) {
+            adherent.setBloque(true);
+            adherentDAO.update(adherent);
+            journalService.log("BLOCAGE_ADHERENT", "Adhérent bloqué : " + adherent.getNom());
+        }
+    }
+    public void debloquerAdherent(int id) {
+        Adherent adherent = adherentDAO.findById(id);
+        if (adherent != null) {
+            adherent.setBloque(false);
+            adherentDAO.update(adherent);
+            journalService.log("DEBLOQUAGE_ADHERENT", "Adhérent débloqué : " + adherent.getNom());
+        }
+    }
 }
